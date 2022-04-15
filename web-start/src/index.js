@@ -20,6 +20,7 @@ import {
   getAuth,
   onAuthStateChanged,
   GoogleAuthProvider,
+  FacebookAuthProvider,
   signInWithPopup,
   signOut,
 } from 'firebase/auth';
@@ -50,7 +51,8 @@ import { getFirebaseConfig } from './firebase-config.js';
 // Signs-in Friendly Chat.
 async function signIn() {
   // Sign in Firebase using popup auth and Google as the identity provider.
-  var provider = new GoogleAuthProvider();
+  // var provider = new GoogleAuthProvider();
+  var provider = new FacebookAuthProvider();
   await signInWithPopup(getAuth(), provider);
 }
 
