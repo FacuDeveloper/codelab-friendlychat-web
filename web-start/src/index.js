@@ -432,3 +432,6 @@ const firebaseAppConfig = getFirebaseConfig();
 
 initFirebaseAuth();
 loadMessages();
+
+// TODO: Enable Firebase Performance Monitoring.
+getPerformance();
