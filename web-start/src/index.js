@@ -35,6 +35,7 @@ import {
   setDoc,
   updateDoc,
   doc,
+  getDocs,
   serverTimestamp,
 } from 'firebase/firestore';
 import {
@@ -105,8 +106,7 @@ async function saveMessage(messageText) {
 
 // Loads chat messages history and listens for upcoming ones.
 function loadMessages() {
-  // Create the query to load the last 12 messages and listen for new ones.
-  const recentMessagesQuery = query(collection(getFirestore(), 'messages'), orderBy('timestamp', 'desc'), limit(12));
+  const recentMessagesQuery = query(collection(getFirestore(), 'messages'), orderBy('timestamp', 'desc'));
 
   // Start listening to the query.
   onSnapshot(recentMessagesQuery, function(snapshot) {
@@ -120,6 +120,93 @@ function loadMessages() {
       }
     });
   });
+}
+
+// Cargar los 5 mensajes anteriores al ultimo mensaje
+function loadLastFiveMessages() {
+  /*
+  Comprueba que el usuario no este conectado, en cuyo caso el boton
+  para cargar los 5 mensajes anteriores no debe realizar dicha carga
+  */
+  if (!checkSignedInWithMessage()) {
+    return;
+  }
+
+  /*
+  Obtiene el documento mas reciente, el cual se usara para cargar los 5 documentos
+  anteriores a este, logrando de esta forma cargar los 5 mensajes anteriores al
+  mensaje correspondiente al documento mas reciente
+  */
+  const mostRecentDocQuery = query(collection(getFirestore(), 'messages'), orderBy('timestamp', 'desc'), limit(1));
+
+  getDocs(mostRecentDocQuery).then((querySnapshot) => {
+      querySnapshot.forEach((doc) => {
+        console.log("*** Datos del documento mas reciente ***");
+        console.log("ID: " + doc.id);
+        console.log("Nombre: " + doc.data().name);
+        console.log("Texto: " + doc.data().text);
+        console.log("URL de imagen: " + doc.data().imageUrl);
+        console.log("Timestamp: " + doc.data().timestamp);
+        console.log("");
+
+        let mostRecentDoc = doc;
+
+        /*
+        Obtiene los 6 documentos mas recientes, los cuales corresponden a los
+        6 mensajes mas recientes
+        */
+        const sixMostRecentDocsQuery = query(collection(getFirestore(), 'messages'), orderBy('timestamp', 'desc'), limit(6));
+
+        getDocs(sixMostRecentDocsQuery).then((querySnapshot) => {
+            querySnapshot.forEach((currentDoc) => {
+              console.log("*** Datos del documento actualmente leido (recorrido) ***")
+              console.log("ID: " + currentDoc.id);
+              console.log("Nombre: " + currentDoc.data().name);
+              console.log("Texto: " + currentDoc.data().text);
+              console.log("URL de imagen: " + currentDoc.data().imageUrl);
+              console.log("");
+
+              /*
+              El documento mas reciente no debe ser nuevamente agregado porque lo que se busca
+              es añadir los 5 mensajes anteriores al ultimo mensaje, el cual corresponde al
+              documento mas reciente, por lo tanto, de los 6 documentos (mensajes) mas recientes
+              se agregan todos menos el documento (mensaje) que es el mas reciente de todos ellos
+              */
+              if (mostRecentDoc.id != currentDoc.id) {
+                /*
+                Si imageUrl no tiene el valor undefined, el documento contiene una imagen,
+                por lo tanto, el mensaje a añadir es una imagen
+                */
+                if (typeof currentDoc.data().imageUrl !== 'undefined') {
+                  addDoc(collection(getFirestore(), 'messages'), {
+                    name: currentDoc.data().name,
+                    imageUrl: currentDoc.data().imageUrl,
+                    profilePicUrl: currentDoc.data().profilePicUrl,
+                    timestamp: serverTimestamp()
+                  });
+                }
+
+                /*
+                Si imageUrl tiene el valor undefined, el documento no contiene una imagen,
+                sino que contiene texto, por lo tanto, el mensaje a añadir es un texto
+                */
+                if (typeof currentDoc.data().imageUrl == 'undefined') {
+                  addDoc(collection(getFirestore(), 'messages'), {
+                    name: currentDoc.data().name,
+                    text: currentDoc.data().text,
+                    profilePicUrl: currentDoc.data().profilePicUrl,
+                    timestamp: serverTimestamp()
+                  });
+                }
+
+              } // End if
+
+            });
+        }); // End getDocs()
+
+      });
+  });
+
 }
 
 // Saves a new message containing an image in Firebase.
@@ -219,6 +306,9 @@ function onMediaFileSelected(event) {
 // Triggered when the send new message form is submitted.
 function onMessageFormSubmit(e) {
   e.preventDefault();
+
+  console.log("Se ejecuto la funcion onMessageFormSubmit");
+
   // Check that the user entered a message and is signed in.
   if (messageInputElement.value && checkSignedInWithMessage()) {
     saveMessage(messageInputElement.value).then(function () {
@@ -417,6 +507,9 @@ var signInButtonGoogle = document.getElementById('sign-in-google');
 var signInButtonFacebook = document.getElementById('sign-in-facebook');
 var signOutButtonElement = document.getElementById('sign-out');
 var signInSnackbarElement = document.getElementById('must-signin-snackbar');
+
+var loadButtonElement = document.getElementById('load-five-messages');
+loadButtonElement.addEventListener('click', loadLastFiveMessages);
 
 // Saves message on form submit.
 messageFormElement.addEventListener('submit', onMessageFormSubmit);

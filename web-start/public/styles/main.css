@@ -107,6 +107,12 @@ main, #messages-card {
   width: calc(100% - 48px);
   float: left;
 }
+#load-form {
+  display: flex;
+  flex-direction: row;
+  width: 48px;
+  float: left;
+}
 #image-form {
   display: flex;
   flex-direction: row;
@@ -114,11 +120,19 @@ main, #messages-card {
   float: right;
 }
 #message-form .mdl-textfield {
-  width: calc(100% - 100px);
+  width: calc(100% - 150px);
 }
-#message-form button, #image-form button {
-  width: 100px;
+#message-form button {
+  width: 15px;
   margin: 15px 0 0 10px;
+}
+#load-form button {
+  width: 15px;
+  margin: 14px 0 0 -70px;
+}
+#image-form button {
+  width: 100px;
+  margin: -36px 0 0 10px;
 }
 .mdl-card {
   min-height: 0;
