@@ -35,6 +35,7 @@ import {
   setDoc,
   updateDoc,
   doc,
+  deleteDoc,
   getDocs,
   serverTimestamp,
 } from 'firebase/firestore';
@@ -207,6 +208,31 @@ function loadLastFiveMessages() {
       });
   });
 
+}
+
+// Elimina todos los documentos correspondientes a los mensajes, por lo tanto, elimina todos los mensajes
+function deleteAllDocs() {
+  // Obtiene todos los documentos correspondientes a los mensajes
+  const messagesQuery = query(collection(getFirestore(), 'messages'));
+
+  getDocs(messagesQuery).then((querySnapshot) => {
+      querySnapshot.forEach((currentDoc) => {
+        console.log("*** Datos del documento a eliminar ***")
+        console.log("ID: " + currentDoc.id);
+        console.log("Nombre: " + currentDoc.data().name);
+        console.log("Texto: " + currentDoc.data().text);
+        console.log("URL de imagen: " + currentDoc.data().imageUrl);
+        console.log("");
+
+        /*
+        Obtiene la referencia de un documento de la coleccion 'messages'
+        para borrar de esta, el documento correspondiente a dicha referencia,
+        logrando de esta forma borrar el mensaje correspondiente a dicho
+        documento
+        */
+        deleteDoc(doc(getFirestore(), 'messages', currentDoc.id));
+      });
+  });
 }
 
 // Saves a new message containing an image in Firebase.
@@ -510,6 +536,9 @@ var signInSnackbarElement = document.getElementById('must-signin-snackbar');
 
 var loadButtonElement = document.getElementById('load-five-messages');
 loadButtonElement.addEventListener('click', loadLastFiveMessages);
+
+var deleteButtonElement = document.getElementById('delete-all-messages');
+deleteButtonElement.addEventListener('click', deleteAllDocs);
 
 // Saves message on form submit.
 messageFormElement.addEventListener('submit', onMessageFormSubmit);

@@ -113,6 +113,12 @@ main, #messages-card {
   width: 48px;
   float: left;
 }
+#delete-form {
+  display: flex;
+  flex-direction: row;
+  width: 48px;
+  float: left;
+}
 #image-form {
   display: flex;
   flex-direction: row;
@@ -120,7 +126,7 @@ main, #messages-card {
   float: right;
 }
 #message-form .mdl-textfield {
-  width: calc(100% - 150px);
+  width: calc(100% - 220px);
 }
 #message-form button {
   width: 15px;
@@ -128,7 +134,11 @@ main, #messages-card {
 }
 #load-form button {
   width: 15px;
-  margin: 14px 0 0 -70px;
+  margin: 15px 0 0 -140px;
+}
+#delete-form button {
+  width: 15px;
+  margin: -36px -0 0 -69px;
 }
 #image-form button {
   width: 100px;
