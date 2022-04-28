@@ -212,6 +212,15 @@ function loadLastFiveMessages() {
 
 // Elimina todos los documentos correspondientes a los mensajes, por lo tanto, elimina todos los mensajes
 function deleteAllDocs() {
+
+  /*
+  Comprueba que el usuario no este conectado, en cuyo caso el boton
+  para eliminar todos los mensajes no debe realizar dicha eliminacion
+  */
+  if (!checkSignedInWithMessage()) {
+    return;
+  }
+
   // Obtiene todos los documentos correspondientes a los mensajes
   const messagesQuery = query(collection(getFirestore(), 'messages'));
 
