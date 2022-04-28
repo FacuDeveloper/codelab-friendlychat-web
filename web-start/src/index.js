@@ -226,7 +226,7 @@ function deleteAllDocs() {
 
   getDocs(messagesQuery).then((querySnapshot) => {
       querySnapshot.forEach((currentDoc) => {
-        console.log("*** Datos del documento a eliminar ***")
+        console.log("*** Datos del documento eliminado ***")
         console.log("ID: " + currentDoc.id);
         console.log("Nombre: " + currentDoc.data().name);
         console.log("Texto: " + currentDoc.data().text);
@@ -242,6 +242,28 @@ function deleteAllDocs() {
         deleteDoc(doc(getFirestore(), 'messages', currentDoc.id));
       });
   });
+}
+
+/*
+Elimina el mensaje en el cual sucede el evento 'click' al presionar el
+boton de eliminacion asociado a dicho mensaje
+*/
+function deleteOneMessage(event) {
+  /*
+  Comprueba que el usuario no este conectado, en cuyo caso el boton
+  para eliminar un mensaje no debe realizar dicha eliminacion
+  */
+  if (!checkSignedInWithMessage()) {
+    return;
+  }
+
+  // Obtiene el acceso al boton que se presiono para eliminar un mensaje
+  const givenButton = event.target;
+
+  console.log("ID del documento eliminado: " + givenButton.dataset.messageId);
+  console.log("")
+
+  deleteDoc(doc(getFirestore(), 'messages', givenButton.dataset.messageId));
 }
 
 // Saves a new message containing an image in Firebase.
@@ -343,6 +365,7 @@ function onMessageFormSubmit(e) {
   e.preventDefault();
 
   console.log("Se ejecuto la funcion onMessageFormSubmit");
+  console.log("");
 
   // Check that the user entered a message and is signed in.
   if (messageInputElement.value && checkSignedInWithMessage()) {
@@ -418,8 +441,7 @@ var MESSAGE_TEMPLATE =
   '<div class="message-container">' +
   '<div class="spacing"><div class="pic"></div></div>' +
   '<div class="message"></div>' +
-  '<div class="name"></div>' +
-  '</div>';
+  '<div class="name"></div>';
 
 // Adds a size to Google Profile pics URLs.
 function addSizeToGoogleProfilePic(url) {
@@ -441,11 +463,31 @@ function deleteMessage(id) {
   }
 }
 
+// Crea un boton de eliminacion de mensaje
+function createDeleteButton(messageId) {
+  let deleteButtonElement = document.createElement('button');
+  deleteButtonElement.innerHTML = "X";
+  deleteButtonElement.setAttribute('id', 'delete-message');
+  deleteButtonElement.setAttribute('data-message-id', messageId);
+  deleteButtonElement.setAttribute('class', 'mdl-delete-button mdl-js-button mdl-delete-button--raised mdl-js-ripple-effect');
+
+  return deleteButtonElement;
+}
+
 function createAndInsertMessage(id, timestamp) {
   const container = document.createElement('div');
   container.innerHTML = MESSAGE_TEMPLATE;
   const div = container.firstChild;
   div.setAttribute('id', id);
+
+  // Crea y añade un boton de eliminacion para cada mensaje ingresado
+  div.appendChild(createDeleteButton(id));
+
+  /*
+  Añade un detector del evento 'click' para el div de cada mensaje
+  ingresado, y lo asocia a la funcion deleteOneMessage
+  */
+  div.addEventListener('click', deleteOneMessage);
 
   // If timestamp is null, assume we've gotten a brand new message.
   // https://stackoverflow.com/a/47781432/4816918
@@ -546,8 +588,8 @@ var signInSnackbarElement = document.getElementById('must-signin-snackbar');
 var loadButtonElement = document.getElementById('load-five-messages');
 loadButtonElement.addEventListener('click', loadLastFiveMessages);
 
-var deleteButtonElement = document.getElementById('delete-all-messages');
-deleteButtonElement.addEventListener('click', deleteAllDocs);
+var deleteAllButtonElement = document.getElementById('delete-all-messages');
+deleteAllButtonElement.addEventListener('click', deleteAllDocs);
 
 // Saves message on form submit.
 messageFormElement.addEventListener('submit', onMessageFormSubmit);

@@ -58,6 +58,10 @@ main, #messages-card {
   display: flex;
   flex-direction: column;
 }
+.mdl-delete-button {
+  width: 36px;
+  margin: 0 0 0 500px;
+}
 #message-filler {
   flex-grow: 1;
 }
