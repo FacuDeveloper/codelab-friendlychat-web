@@ -42,6 +42,7 @@ import {
 import {
   getStorage,
   ref,
+  deleteObject,
   uploadBytesResumable,
   getDownloadURL,
 } from 'firebase/storage';
@@ -212,7 +213,6 @@ function loadLastFiveMessages() {
 
 // Elimina todos los documentos correspondientes a los mensajes, por lo tanto, elimina todos los mensajes
 function deleteAllDocs() {
-
   /*
   Comprueba que el usuario no este conectado, en cuyo caso el boton
   para eliminar todos los mensajes no debe realizar dicha eliminacion
@@ -232,6 +232,31 @@ function deleteAllDocs() {
         console.log("Texto: " + currentDoc.data().text);
         console.log("URL de imagen: " + currentDoc.data().imageUrl);
         console.log("");
+
+        /*
+        Si imageUrl no tiene el valor undefined, el documento contiene una imagen,
+        por lo tanto, se tiene que eliminar dicha imagen de Firebase
+        */
+        if (currentDoc.data().imageUrl !== 'undefined') {
+          // Crea una referencia con el URL de la imagen del documento
+          const httpsReference = ref(getStorage(), currentDoc.data().imageUrl);
+
+          console.log("*** Datos de la imagen eliminada ***")
+          console.log("fullPath: " + httpsReference.fullPath);
+          console.log("file name:" + httpsReference.name);
+          console.log("");
+
+          // Create a child reference to the file to delete
+          const desertRef = ref(getStorage(), httpsReference.fullPath);
+
+          // Delete the file
+          deleteObject(desertRef).then(() => {
+            console.log("File deleted successfully");
+          }).catch((error) => {
+            console.log("Uh-oh, an error occurred!");
+            console.log(error);
+          });
+        }
 
         /*
         Obtiene la referencia de un documento de la coleccion 'messages'
