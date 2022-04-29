@@ -35,6 +35,7 @@ import {
   setDoc,
   updateDoc,
   doc,
+  getDoc,
   deleteDoc,
   getDocs,
   serverTimestamp,
@@ -233,30 +234,7 @@ function deleteAllDocs() {
         console.log("URL de imagen: " + currentDoc.data().imageUrl);
         console.log("");
 
-        /*
-        Si imageUrl no tiene el valor undefined, el documento contiene una imagen,
-        por lo tanto, se tiene que eliminar dicha imagen de Firebase
-        */
-        if (currentDoc.data().imageUrl !== 'undefined') {
-          // Crea una referencia con el URL de la imagen del documento
-          const httpsReference = ref(getStorage(), currentDoc.data().imageUrl);
-
-          console.log("*** Datos de la imagen eliminada ***")
-          console.log("fullPath: " + httpsReference.fullPath);
-          console.log("file name:" + httpsReference.name);
-          console.log("");
-
-          // Create a child reference to the file to delete
-          const desertRef = ref(getStorage(), httpsReference.fullPath);
-
-          // Delete the file
-          deleteObject(desertRef).then(() => {
-            console.log("File deleted successfully");
-          }).catch((error) => {
-            console.log("Uh-oh, an error occurred!");
-            console.log(error);
-          });
-        }
+        deleteImage(currentDoc.data().imageUrl);
 
         /*
         Obtiene la referencia de un documento de la coleccion 'messages'
@@ -273,7 +251,7 @@ function deleteAllDocs() {
 Elimina el mensaje en el cual sucede el evento 'click' al presionar el
 boton de eliminacion asociado a dicho mensaje
 */
-function deleteOneMessage(event) {
+async function deleteOneMessage(event) {
   /*
   Comprueba que el usuario no este conectado, en cuyo caso el boton
   para eliminar un mensaje no debe realizar dicha eliminacion
@@ -288,7 +266,41 @@ function deleteOneMessage(event) {
   console.log("ID del documento eliminado: " + givenButton.dataset.messageId);
   console.log("")
 
+  const docReference = doc(getFirestore(), 'messages', givenButton.dataset.messageId);
+  const docSnap = await getDoc(docReference);
+
+  deleteImage(docSnap.data().imageUrl);
   deleteDoc(doc(getFirestore(), 'messages', givenButton.dataset.messageId));
+}
+
+// Elimina una imagen de la base de datos de Firebase
+function deleteImage(imageUrl) {
+  /*
+  Si imageUrl no tiene el valor undefined, el documento del cual proviene,
+  contiene una imagen, por lo tanto, se tiene que eliminar dicha imagen de
+  Firebase
+  */
+  if (imageUrl !== undefined) {
+    // Crea una referencia con el URL de la imagen del documento
+    const httpsReference = ref(getStorage(), imageUrl);
+
+    console.log("*** Datos de la imagen eliminada ***")
+    console.log("fullPath: " + httpsReference.fullPath);
+    console.log("file name:" + httpsReference.name);
+    console.log("");
+
+    // Create a child reference to the file to delete
+    const desertRef = ref(getStorage(), httpsReference.fullPath);
+
+    // Delete the file
+    deleteObject(desertRef).then(() => {
+      console.log("File deleted successfully");
+      console.log("");
+    }).catch((error) => {
+      console.log("Uh-oh, an error occurred!");
+      console.log(error);
+    });
+  }
 }
 
 // Saves a new message containing an image in Firebase.
