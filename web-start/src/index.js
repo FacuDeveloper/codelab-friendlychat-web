@@ -29,7 +29,9 @@ import {
   collection,
   addDoc,
   query,
+  where,
   orderBy,
+  startAfter,
   limit,
   onSnapshot,
   setDoc,
@@ -109,7 +111,7 @@ async function saveMessage(messageText) {
 
 // Loads chat messages history and listens for upcoming ones.
 function loadMessages() {
-  const recentMessagesQuery = query(collection(getFirestore(), 'messages'), orderBy('timestamp', 'desc'));
+  const recentMessagesQuery = query(collection(getFirestore(), 'messages'), orderBy('timestamp', 'desc'), limit(3));
 
   // Start listening to the query.
   onSnapshot(recentMessagesQuery, function(snapshot) {
@@ -125,8 +127,25 @@ function loadMessages() {
   });
 }
 
-// Cargar los 5 mensajes anteriores al ultimo mensaje
-function loadLastFiveMessages() {
+/*
+Este arreglo es cargado con los tres mensajes mas recientes, los cuales
+son los ultimos tres mensajes que aparecen en el chat, estando estos
+mensajes en el arreglo desde el mas reciente al menos reciente
+*/
+let arrayMessages = [];
+
+/*
+Este arreglo es cargado con los cinco mensajes anteriores que se
+cargan en el chat, estando estos mensajes en el arreglo desde el
+mas reciente al menos reciente
+*/
+let arrayLoadedMessages = [];
+
+/*
+Carga 5 mensajes anteriores cronologicamente hablando, es decir, carga los
+5 mensajes anteriores al mensaje que aparece arriba del todo en el chat
+*/
+function loadPreviousFiveMessages() {
   /*
   Comprueba que el usuario no este conectado, en cuyo caso el boton
   para cargar los 5 mensajes anteriores no debe realizar dicha carga
@@ -135,81 +154,83 @@ function loadLastFiveMessages() {
     return;
   }
 
+  let firstMessageChat;
+
+  if (getFirstMessage() == undefined) {
+    alert("Los 5 mensajes anteriores son cargados cuando el boton '+5' es presionado despues de la primera vez que se lo presiono. Presione nuevamente el boton '+5'.");
+    return;
+  }
+
   /*
-  Obtiene el documento mas reciente, el cual se usara para cargar los 5 documentos
-  anteriores a este, logrando de esta forma cargar los 5 mensajes anteriores al
-  mensaje correspondiente al documento mas reciente
+  Si no se cargaron 5 mensajes anteriores, se obtiene el mensaje que aparece
+  arriba del todo en el chat de los tres mensajes mas recientes, los cuales
+  son los que aparecen en el chat cuando se carga la aplicacion, y siempre
+  que no se cargan 5 mensajes anteriores
   */
-  const mostRecentDocQuery = query(collection(getFirestore(), 'messages'), orderBy('timestamp', 'desc'), limit(1));
+  if (arrayLoadedMessages.length == 0) {
+    firstMessageChat = getFirstMessage();
+  }
 
-  getDocs(mostRecentDocQuery).then((querySnapshot) => {
-      querySnapshot.forEach((doc) => {
-        console.log("*** Datos del documento mas reciente ***");
-        console.log("ID: " + doc.id);
-        console.log("Nombre: " + doc.data().name);
-        console.log("Texto: " + doc.data().text);
-        console.log("URL de imagen: " + doc.data().imageUrl);
-        console.log("Timestamp: " + doc.data().timestamp);
-        console.log("");
+  /*
+  Si se cargaron 5 mensajes anteriores, se obtiene el mensaje que aparece
+  arriba del todo en el chat de los 5 mensajes cargados, los cuales aparecen
+  arriba de los tres mensajes mas recientes que aparecen en el chat siempre
+  que no se cargan 5 mensajes anteriores
+  */
+  if (arrayLoadedMessages.length > 0) {
+    firstMessageChat = arrayLoadedMessages[arrayLoadedMessages.length - 1];
+  }
 
-        let mostRecentDoc = doc;
+  console.log("*** Datos del mensaje de arriba del todo en el chat ***");
+  console.log("ID: " + firstMessageChat.id);
+  console.log("Nombre: " + firstMessageChat.data().name);
+  console.log("Texto: " + firstMessageChat.data().text);
+  console.log("URL de imagen: " + firstMessageChat.data().imageUrl);
+  console.log("Timestamp: " + firstMessageChat.data().timestamp);
+  console.log("");
 
-        /*
-        Obtiene los 6 documentos mas recientes, los cuales corresponden a los
-        6 mensajes mas recientes
-        */
-        const sixMostRecentDocsQuery = query(collection(getFirestore(), 'messages'), orderBy('timestamp', 'desc'), limit(6));
+  const fivePreviousMessagesQuery = query(collection(getFirestore(), 'messages'), orderBy('timestamp', 'desc'), startAfter(firstMessageChat), limit(5));
 
-        getDocs(sixMostRecentDocsQuery).then((querySnapshot) => {
-            querySnapshot.forEach((currentDoc) => {
-              console.log("*** Datos del documento actualmente leido (recorrido) ***")
-              console.log("ID: " + currentDoc.id);
-              console.log("Nombre: " + currentDoc.data().name);
-              console.log("Texto: " + currentDoc.data().text);
-              console.log("URL de imagen: " + currentDoc.data().imageUrl);
-              console.log("");
+  getDocs(fivePreviousMessagesQuery).then((querySnapshot) => {
+      querySnapshot.forEach((currentDoc) => {
+        // console.log("*** Datos de los cinco docs. anteriores ***");
+        // console.log("ID: " + currentDoc.id);
+        // console.log("Nombre: " + currentDoc.data().name);
+        // console.log("Texto: " + currentDoc.data().text);
+        // console.log("URL de imagen: " + currentDoc.data().imageUrl);
+        // console.log("Timestamp: " + currentDoc.data().timestamp);
+        // console.log("");
 
-              /*
-              El documento mas reciente no debe ser nuevamente agregado porque lo que se busca
-              es añadir los 5 mensajes anteriores al ultimo mensaje, el cual corresponde al
-              documento mas reciente, por lo tanto, de los 6 documentos (mensajes) mas recientes
-              se agregan todos menos el documento (mensaje) que es el mas reciente de todos ellos
-              */
-              if (mostRecentDoc.id != currentDoc.id) {
-                /*
-                Si imageUrl no tiene el valor undefined, el documento contiene una imagen,
-                por lo tanto, el mensaje a añadir es una imagen
-                */
-                if (typeof currentDoc.data().imageUrl !== 'undefined') {
-                  addDoc(collection(getFirestore(), 'messages'), {
-                    name: currentDoc.data().name,
-                    imageUrl: currentDoc.data().imageUrl,
-                    profilePicUrl: currentDoc.data().profilePicUrl,
-                    timestamp: serverTimestamp()
-                  });
-                }
+        displayMessage(currentDoc.id, currentDoc.data().timestamp, currentDoc.data().name, currentDoc.data().text, currentDoc.data().profilePicUrl, currentDoc.data().imageUrl);
+        addElementArray(arrayLoadedMessages, currentDoc);
+      });
+  });
+}
 
-                /*
-                Si imageUrl tiene el valor undefined, el documento no contiene una imagen,
-                sino que contiene texto, por lo tanto, el mensaje a añadir es un texto
-                */
-                if (typeof currentDoc.data().imageUrl == 'undefined') {
-                  addDoc(collection(getFirestore(), 'messages'), {
-                    name: currentDoc.data().name,
-                    text: currentDoc.data().text,
-                    profilePicUrl: currentDoc.data().profilePicUrl,
-                    timestamp: serverTimestamp()
-                  });
-                }
+// Agrega un documento dado a un arreglo dado
+function addElementArray(givenArray, givenDocument) {
+  givenArray.push(givenDocument);
+}
 
-              } // End if
+// Devuelve el mensaje que aparece arriba del todo en el chat
+function getFirstMessage() {
+  const threeRecentMessageQuery = query(collection(getFirestore(), 'messages'), orderBy('timestamp', 'desc'), limit(3));
 
-            });
-        }); // End getDocs()
+  getDocs(threeRecentMessageQuery).then((querySnapshot) => {
+      querySnapshot.forEach((currentDoc) => {
+        // console.log("*** Datos de los tres docs. mas recientes ***");
+        // console.log("ID: " + currentDoc.id);
+        // console.log("Nombre: " + currentDoc.data().name);
+        // console.log("Texto: " + currentDoc.data().text);
+        // console.log("URL de imagen: " + currentDoc.data().imageUrl);
+        // console.log("Timestamp: " + currentDoc.data().timestamp);
+        // console.log("");
 
+        addElementArray(arrayMessages, currentDoc);
       });
   });
 
+  return arrayMessages[arrayMessages.length - 1];
 }
 
 // Elimina todos los documentos correspondientes a los mensajes, por lo tanto, elimina todos los mensajes
@@ -234,6 +255,8 @@ function deleteAllDocs() {
         console.log("URL de imagen: " + currentDoc.data().imageUrl);
         console.log("");
 
+        // Elimina el mensaje de la GUI
+        deleteMessage(currentDoc.id);
         deleteImage(currentDoc.data().imageUrl);
 
         /*
@@ -245,6 +268,14 @@ function deleteAllDocs() {
         deleteDoc(doc(getFirestore(), 'messages', currentDoc.id));
       });
   });
+
+  /*
+  Se vacian los arreglos para que sea posible cargar 5 mensajes anteriores
+  a partir de mensajes nuevos, es decir, mensajes que son ingresados luego
+  de eliminar todos los existentes
+  */
+  arrayMessages = [];
+  arrayLoadedMessages = [];
 }
 
 /*
@@ -269,6 +300,8 @@ async function deleteOneMessage(event) {
   const docReference = doc(getFirestore(), 'messages', givenButton.dataset.messageId);
   const docSnap = await getDoc(docReference);
 
+  // Elimina el mensaje de la GUI
+  deleteMessage(docSnap.id);
   deleteImage(docSnap.data().imageUrl);
   deleteDoc(doc(getFirestore(), 'messages', givenButton.dataset.messageId));
 }
@@ -284,7 +317,7 @@ function deleteImage(imageUrl) {
     // Crea una referencia con el URL de la imagen del documento
     const httpsReference = ref(getStorage(), imageUrl);
 
-    console.log("*** Datos de la imagen eliminada ***")
+    console.log("*** Datos de la imagen eliminada ***");
     console.log("fullPath: " + httpsReference.fullPath);
     console.log("file name:" + httpsReference.name);
     console.log("");
@@ -500,7 +533,7 @@ function deleteMessage(id) {
   }
 }
 
-// Crea un boton de eliminacion de mensaje
+// Crea un boton de eliminacion de mensaje para cada mensaje ingresado
 function createDeleteButton(messageId) {
   let deleteButtonElement = document.createElement('button');
   deleteButtonElement.innerHTML = "X";
@@ -623,7 +656,7 @@ var signOutButtonElement = document.getElementById('sign-out');
 var signInSnackbarElement = document.getElementById('must-signin-snackbar');
 
 var loadButtonElement = document.getElementById('load-five-messages');
-loadButtonElement.addEventListener('click', loadLastFiveMessages);
+loadButtonElement.addEventListener('click', loadPreviousFiveMessages);
 
 var deleteAllButtonElement = document.getElementById('delete-all-messages');
 deleteAllButtonElement.addEventListener('click', deleteAllDocs);
