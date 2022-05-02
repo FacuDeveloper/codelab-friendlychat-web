@@ -218,13 +218,13 @@ function getFirstMessage() {
 
   getDocs(threeRecentMessageQuery).then((querySnapshot) => {
       querySnapshot.forEach((currentDoc) => {
-        // console.log("*** Datos de los tres docs. mas recientes ***");
-        // console.log("ID: " + currentDoc.id);
-        // console.log("Nombre: " + currentDoc.data().name);
-        // console.log("Texto: " + currentDoc.data().text);
-        // console.log("URL de imagen: " + currentDoc.data().imageUrl);
-        // console.log("Timestamp: " + currentDoc.data().timestamp);
-        // console.log("");
+        console.log("*** Datos de los tres docs. mas recientes ***");
+        console.log("ID: " + currentDoc.id);
+        console.log("Nombre: " + currentDoc.data().name);
+        console.log("Texto: " + currentDoc.data().text);
+        console.log("URL de imagen: " + currentDoc.data().imageUrl);
+        console.log("Timestamp: " + currentDoc.data().timestamp);
+        console.log("");
 
         addElementArray(arrayMessages, currentDoc);
       });
@@ -304,6 +304,20 @@ async function deleteOneMessage(event) {
   deleteMessage(docSnap.id);
   deleteImage(docSnap.data().imageUrl);
   deleteDoc(doc(getFirestore(), 'messages', givenButton.dataset.messageId));
+
+  // El mensaje eliminado de la GUI tambien se elimina de arrayLoadedMessages
+  if (arrayLoadedMessages.length > 0) {
+
+    for(var i = 0; i < arrayLoadedMessages.length; i++) {
+
+      if (arrayLoadedMessages[i].id == docSnap.id) {
+        arrayLoadedMessages.splice(i, 1);
+      }
+
+    } // End for
+
+  }
+
 }
 
 // Elimina una imagen de la base de datos de Firebase
