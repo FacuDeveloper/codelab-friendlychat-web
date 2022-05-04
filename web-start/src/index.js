@@ -101,7 +101,8 @@ async function saveMessage(messageText) {
       name: getUserName(),
       text: messageText,
       profilePicUrl: getProfilePicUrl(),
-      timestamp: serverTimestamp()
+      timestamp: serverTimestamp(),
+      favorite: false
     });
   }
   catch(error) {
@@ -316,6 +317,60 @@ async function deleteOneMessage(event) {
 
     } // End for
 
+  }
+
+}
+
+/*
+Destaca o desestaca el mensaje en el cual sucede el evento 'click' al
+presionar el boton de destacar mensaje asociado a dicho mensaje
+*/
+async function highlightMessage(event) {
+  /*
+  Comprueba que el usuario no este conectado, en cuyo caso el boton
+  para destacar un mensaje no debe realizar dicha accion
+  */
+  if (!checkSignedInWithMessage()) {
+    return;
+  }
+
+  // Obtiene el acceso al boton que se presiono para destacar un mensaje
+  const givenButton = event.target;
+
+  console.log("ID del documento destacado: " + givenButton.dataset.messageId);
+  console.log("")
+
+  const docReference = doc(getFirestore(), 'messages', givenButton.dataset.messageId);
+  const docSnap = await getDoc(docReference);
+
+  /*
+  Si el atributo favorite del mensaje es falso al momento de la pulsacion del
+  boton de destacar mensaje, se le asigna el valor true, y el icono de dicho
+  boton cambia por el icono de una estrella completa. Esto es para destacar un mensaje
+  desestacado.
+  */
+  if (!docSnap.data().favorite) {
+    givenButton.removeAttribute('class');
+    givenButton.setAttribute('class', 'fa fa-star');
+
+    updateDoc(docReference, {
+      favorite: true
+    });
+  }
+
+  /*
+  Si el atributo favorite del mensaje es verdadero al momento de la pulsacion del
+  boton de destacar mensaje, se le asigna el valor false, y el icono de dicho
+  boton cambia por el icono de una estrella vacia. Esto es para desestacar un mensaje
+  destacado.
+  */
+  if (docSnap.data().favorite) {
+    givenButton.removeAttribute('class');
+    givenButton.setAttribute('class', 'fa fa-star-o');
+
+    updateDoc(docReference, {
+      favorite: false
+    });
   }
 
 }
@@ -555,7 +610,29 @@ function createDeleteButton(messageId) {
   deleteButtonElement.setAttribute('data-message-id', messageId);
   deleteButtonElement.setAttribute('class', 'mdl-delete-button mdl-js-button mdl-delete-button--raised mdl-js-ripple-effect');
 
+  /*
+  Agrega un detector del evento 'click' para el boton de eliminacion
+  de cada mensaje ingresado, y lo asocia a la funcion deleteOneMessage
+  */
+  deleteButtonElement.addEventListener('click', deleteOneMessage);
+
   return deleteButtonElement;
+}
+
+// Crea un boton de destacar mensaje para cada mensaje ingresado
+function createFavoriteButton(messageId) {
+  let favoriteButton = document.createElement('button');
+  favoriteButton.setAttribute('id', 'favorite-message');
+  favoriteButton.setAttribute('data-message-id', messageId);
+  favoriteButton.setAttribute('class', 'fa fa-star-o');
+
+  /*
+  Agrega un detector del evento 'click' para el boton de destacar mensaje
+  de cada mensaje ingresado, y lo asocia a la funcion highlightMessage
+  */
+  favoriteButton.addEventListener('click', highlightMessage);
+
+  return favoriteButton;
 }
 
 function createAndInsertMessage(id, timestamp) {
@@ -567,11 +644,8 @@ function createAndInsertMessage(id, timestamp) {
   // Crea y añade un boton de eliminacion para cada mensaje ingresado
   div.appendChild(createDeleteButton(id));
 
-  /*
-  Añade un detector del evento 'click' para el div de cada mensaje
-  ingresado, y lo asocia a la funcion deleteOneMessage
-  */
-  div.addEventListener('click', deleteOneMessage);
+  // Crea y añade un boton de destacar mensaje para cada mensaje ingresado
+  div.appendChild(createFavoriteButton(id));
 
   // If timestamp is null, assume we've gotten a brand new message.
   // https://stackoverflow.com/a/47781432/4816918
