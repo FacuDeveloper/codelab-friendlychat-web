@@ -112,7 +112,7 @@ async function saveMessage(messageText) {
 
 // Loads chat messages history and listens for upcoming ones.
 function loadMessages() {
-  const recentMessagesQuery = query(collection(getFirestore(), 'messages'), orderBy('timestamp', 'desc'), limit(3));
+  const recentMessagesQuery = query(collection(getFirestore(), 'messages'), orderBy('timestamp', 'desc'));
 
   // Start listening to the query.
   onSnapshot(recentMessagesQuery, function(snapshot) {
@@ -479,6 +479,71 @@ const noFavoriteMessages = () => {
   const favoriteMessagesQuery = query(collection(getFirestore(), 'messages'), where("favorite", "==", true), orderBy('timestamp', 'desc'));
 
   return getDocs(favoriteMessagesQuery).then((querySnapshot) => {
+    return querySnapshot.empty;
+  });
+};
+
+// Elimina todos los mensajes excepto los preferidos
+async function deleteAllExceptFavorites() {
+  /*
+  Comprueba que el usuario no este conectado, en cuyo caso el boton
+  para eliminar todos los mensajes excepto los mensajes favoritos no
+  debe realizar dicha accion
+  */
+  if (!checkSignedInWithMessage()) {
+    return;
+  }
+
+  /*
+  Si no hay mensajes cargados en la base de datos de Firebase, no
+  es posible borrar todos los mensajes excepto los que estan
+  marcados como favoritos
+  */
+  if (await noMessages()) {
+    alert("No hay mensajes cargados para realizar esta accion (eliminar todos los mensajes, excepto los favoritos).");
+    return;
+  }
+
+  /*
+  Si hay mensajes, y no hay mensajes marcados como favoritos, se
+  muestra un cuadro de confirmacion advirtiendo lo que sucedera en
+  caso de continuar con la accion
+  */
+  if (!await noMessages() && await noFavoriteMessages()) {
+    /*
+    Si el usuario pulsa el boton de cancelacion, esta funcion no continua
+    su flujo de ejecucion, sino que devuelve el control, mediante la instruccion
+    return, a quien la haya invocado
+    */
+    if (!confirm('No hay mensajes marcados como favoritos, por lo tanto, se borrarán todos los mensajes en caso de continuar con esta accion.')) {
+      return;
+    }
+  }
+
+  const allMessagesQuery = query(collection(getFirestore(), 'messages'), orderBy('timestamp', 'desc'));
+
+  getDocs(allMessagesQuery).then((querySnapshot) => {
+      querySnapshot.forEach((currentDoc) => {
+        /*
+        Si el documento (mensaje) actualmente leido no esta marcado
+        como favorito, se lo elimina de la GUI y de la base de datos
+        de Firebase
+        */
+        if (!currentDoc.data().favorite) {
+          // Elimina el mensaje de la GUI
+          deleteMessage(currentDoc.id);
+          deleteImage(currentDoc.data().imageUrl);
+          deleteDoc(doc(getFirestore(), 'messages', currentDoc.id));
+        }
+      });
+  });
+}
+
+// Retorna true si hay mensajes cargados en la base de datos de Firebase, false en caso contrario
+const noMessages = () => {
+  const allMessagesQuery = query(collection(getFirestore(), 'messages'), orderBy('timestamp', 'desc'));
+
+  return getDocs(allMessagesQuery).then((querySnapshot) => {
     return querySnapshot.empty;
   });
 };
@@ -870,6 +935,9 @@ deleteAllButtonElement.addEventListener('click', deleteAllDocs);
 
 var favoritesButtonElement = document.getElementById('favorite-messages');
 favoritesButtonElement.addEventListener('click', displayMessages);
+
+var deleteNonFavoriteButton = document.getElementById('delete-non-favorite-messages');
+deleteNonFavoriteButton.addEventListener('click', deleteAllExceptFavorites);
 
 // Saves message on form submit.
 messageFormElement.addEventListener('submit', onMessageFormSubmit);

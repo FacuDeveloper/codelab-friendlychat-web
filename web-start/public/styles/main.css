@@ -130,7 +130,7 @@ main, #messages-card {
   float: right;
 }
 #message-form .mdl-textfield {
-  width: calc(100% - 280px);
+  width: calc(100% - 350px);
 }
 #message-form button {
   width: 15px;
@@ -138,19 +138,23 @@ main, #messages-card {
 }
 #load-five-messages-form button {
   width: 15px;
-  margin: 14px 0 0 -201px;
+  margin: 14px 0 0 -271px;
 }
 #delete-form button {
   width: 15px;
-  margin: -36px -0 0 -131px;
+  margin: -36px -0 0 -201px;
 }
 #favorites-form button {
   width: 15px;
-  margin: -57px -0 0 -61px;
+  margin: -57px -0 0 -131px;
+}
+#delete-non-favorites-form button {
+  width: 15px;
+  margin: -92px -0 0 599px;
 }
 #image-form button {
   width: 100px;
-  margin: -54px 0 0 10px;
+  margin: -72px 0 0 10px;
 }
 .mdl-card {
   min-height: 0;
