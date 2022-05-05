@@ -122,7 +122,7 @@ function loadMessages() {
       } else {
         var message = change.doc.data();
         displayMessage(change.doc.id, message.timestamp, message.name,
-                      message.text, message.profilePicUrl, message.imageUrl);
+                      message.text, message.profilePicUrl, message.imageUrl, message.favorite);
       }
     });
   });
@@ -202,7 +202,8 @@ function loadPreviousFiveMessages() {
         // console.log("Timestamp: " + currentDoc.data().timestamp);
         // console.log("");
 
-        displayMessage(currentDoc.id, currentDoc.data().timestamp, currentDoc.data().name, currentDoc.data().text, currentDoc.data().profilePicUrl, currentDoc.data().imageUrl);
+        displayMessage(currentDoc.id, currentDoc.data().timestamp, currentDoc.data().name, currentDoc.data().text, currentDoc.data().profilePicUrl, currentDoc.data().imageUrl,
+        currentDoc.data().favorite);
         addElementArray(arrayLoadedMessages, currentDoc);
       });
   });
@@ -346,7 +347,7 @@ async function highlightMessage(event) {
   /*
   Si el atributo favorite del mensaje es falso al momento de la pulsacion del
   boton de destacar mensaje, se le asigna el valor true, y el icono de dicho
-  boton cambia por el icono de una estrella completa. Esto es para destacar un mensaje
+  boton cambia por el icono de una estrella rellena. Esto es para destacar un mensaje
   desestacado.
   */
   if (!docSnap.data().favorite) {
@@ -361,7 +362,7 @@ async function highlightMessage(event) {
   /*
   Si el atributo favorite del mensaje es verdadero al momento de la pulsacion del
   boton de destacar mensaje, se le asigna el valor false, y el icono de dicho
-  boton cambia por el icono de una estrella vacia. Esto es para desestacar un mensaje
+  boton cambia por el icono de una estrella sin relleno. Esto es para desestacar un mensaje
   destacado.
   */
   if (docSnap.data().favorite) {
@@ -371,9 +372,116 @@ async function highlightMessage(event) {
     updateDoc(docReference, {
       favorite: false
     });
-  }
+
+    if (displayFavorites) {
+      /*
+      Estas dos invocaciones permiten que en la lista que muestra unicamente los mensajes
+      preferidos (cuando se presiona el boton de mostrar mensajes preferidos), se eliminen
+      de la GUI los mensajes que se desmarcan como preferidos
+      */
+      deleteAllDocsFromGUI();
+      displayFavoritesMessages();
+
+      /*
+      Este control permite que se muestre la lista con todos los mensajes no marcados
+      como preferidos cuando se desmarcan todos los mensajes de la lista de mensajes
+      preferidos
+      */
+      if (await noFavoriteMessages()) {
+        displayAllMessages();
+      }
+    }
+
+  } // End if
 
 }
+
+let displayFavorites = false;
+
+/*
+Muestra los mensajes favoritos, y muestra todos los mensajes, tanto los
+favoritos como los que no estan marcados como favoritos
+*/
+async function displayMessages() {
+  /*
+  Comprueba que el usuario no este conectado, en cuyo caso el boton
+  para visualizar unicamente los mensajes preferidos no debe mostrar
+  dichos mensajes
+  */
+  if (!checkSignedInWithMessage()) {
+    return;
+  }
+
+  /*
+  Si no hay mensajes marcados como favoritos, no es posible mostrar
+  unicamente dichos mensajes
+  */
+  if (await noFavoriteMessages()) {
+    alert("No hay mensajes marcados como favoritos.");
+    return;
+  }
+
+  /*
+  Elimina todos los mensajes de la GUI, tanto los marcados como
+  favoritos, como los que no estan marcados como favoritos, lo
+  cual es necesario para mostrar todos los mensajes o unicamente
+  los mensajes preferidos
+  */
+  deleteAllDocsFromGUI();
+
+  if (!displayFavorites) {
+    displayFavoritesMessages();
+    displayFavorites = true;
+    return;
+  }
+
+  displayAllMessages();
+  displayFavorites = false;
+}
+
+// Muestra unicamente los mensajes marcados como favoritos
+function displayFavoritesMessages() {
+  const favoriteMessagesQuery = query(collection(getFirestore(), 'messages'), where("favorite", "==", true), orderBy('timestamp', 'desc'));
+
+  getDocs(favoriteMessagesQuery).then((querySnapshot) => {
+      querySnapshot.forEach((currentDoc) => {
+        displayMessage(currentDoc.id, currentDoc.data().timestamp, currentDoc.data().name, currentDoc.data().text, currentDoc.data().profilePicUrl, currentDoc.data().imageUrl,
+        currentDoc.data().favorite);
+      });
+  });
+}
+
+// Muestra todos los mensajes, los que no estan marcados como favoritos y los que si lo estan
+function displayAllMessages() {
+  const allMessagesQuery = query(collection(getFirestore(), 'messages'), orderBy('timestamp', 'desc'));
+
+  getDocs(allMessagesQuery).then((querySnapshot) => {
+      querySnapshot.forEach((currentDoc) => {
+        displayMessage(currentDoc.id, currentDoc.data().timestamp, currentDoc.data().name, currentDoc.data().text, currentDoc.data().profilePicUrl, currentDoc.data().imageUrl,
+        currentDoc.data().favorite);
+      });
+  });
+}
+
+// Elimina todos los mensajes de la interfaz grafica de usuario
+function deleteAllDocsFromGUI() {
+  const allMessagesQuery = query(collection(getFirestore(), 'messages'), orderBy('timestamp', 'desc'));
+
+  getDocs(allMessagesQuery).then((querySnapshot) => {
+      querySnapshot.forEach((currentDoc) => {
+        deleteMessage(currentDoc.id);
+      });
+  });
+}
+
+// Retorna true si hay mensajes favoritos, false en caso contrario
+const noFavoriteMessages = () => {
+  const favoriteMessagesQuery = query(collection(getFirestore(), 'messages'), where("favorite", "==", true), orderBy('timestamp', 'desc'));
+
+  return getDocs(favoriteMessagesQuery).then((querySnapshot) => {
+    return querySnapshot.empty;
+  });
+};
 
 // Elimina una imagen de la base de datos de Firebase
 function deleteImage(imageUrl) {
@@ -682,7 +790,7 @@ function createAndInsertMessage(id, timestamp) {
 }
 
 // Displays a Message in the UI.
-function displayMessage(id, timestamp, name, text, picUrl, imageUrl) {
+function displayMessage(id, timestamp, name, text, picUrl, imageUrl, favorite) {
   var div =
     document.getElementById(id) || createAndInsertMessage(id, timestamp);
 
@@ -716,6 +824,17 @@ function displayMessage(id, timestamp, name, text, picUrl, imageUrl) {
   }, 1);
   messageListElement.scrollTop = messageListElement.scrollHeight;
   messageInputElement.focus();
+
+  /*
+  Si el mensaje a mostrar esta marcado como favorito, se cambia el icono
+  del boton de marcar mensaje como favorito, asociado a dicho mensaje, por
+  el icono de una estrella rellena
+  */
+  if (favorite) {
+    const favoriteButton = div.children[4];
+    favoriteButton.removeAttribute('class');
+    favoriteButton.setAttribute('class', 'fa fa-star');
+  }
 }
 
 // Enables or disables the submit button depending on the values of the input
@@ -748,6 +867,9 @@ loadButtonElement.addEventListener('click', loadPreviousFiveMessages);
 
 var deleteAllButtonElement = document.getElementById('delete-all-messages');
 deleteAllButtonElement.addEventListener('click', deleteAllDocs);
+
+var favoritesButtonElement = document.getElementById('favorite-messages');
+favoritesButtonElement.addEventListener('click', displayMessages);
 
 // Saves message on form submit.
 messageFormElement.addEventListener('submit', onMessageFormSubmit);
