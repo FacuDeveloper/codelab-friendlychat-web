@@ -112,7 +112,7 @@ async function saveMessage(messageText) {
 
 // Loads chat messages history and listens for upcoming ones.
 function loadMessages() {
-  const recentMessagesQuery = query(collection(getFirestore(), 'messages'), orderBy('timestamp', 'desc'));
+  const recentMessagesQuery = query(collection(getFirestore(), 'messages'), orderBy('timestamp', 'desc'), limit(3));
 
   // Start listening to the query.
   onSnapshot(recentMessagesQuery, function(snapshot) {
@@ -129,13 +129,6 @@ function loadMessages() {
 }
 
 /*
-Este arreglo es cargado con los tres mensajes mas recientes, los cuales
-son los ultimos tres mensajes que aparecen en el chat, estando estos
-mensajes en el arreglo desde el mas reciente al menos reciente
-*/
-let arrayMessages = [];
-
-/*
 Este arreglo es cargado con los cinco mensajes anteriores que se
 cargan en el chat, estando estos mensajes en el arreglo desde el
 mas reciente al menos reciente
@@ -146,7 +139,7 @@ let arrayLoadedMessages = [];
 Carga 5 mensajes anteriores cronologicamente hablando, es decir, carga los
 5 mensajes anteriores al mensaje que aparece arriba del todo en el chat
 */
-function loadPreviousFiveMessages() {
+async function loadPreviousFiveMessages() {
   /*
   Comprueba que el usuario no este conectado, en cuyo caso el boton
   para cargar los 5 mensajes anteriores no debe realizar dicha carga
@@ -155,12 +148,17 @@ function loadPreviousFiveMessages() {
     return;
   }
 
-  let firstMessageChat;
-
-  if (getFirstMessage() == undefined) {
-    alert("Los 5 mensajes anteriores son cargados cuando el boton '+5' es presionado despues de la primera vez que se lo presiono. Presione nuevamente el boton '+5'.");
+  /*
+  Si no hay mensajes, no es posible mostrar 5 mensajes anteriores
+  cronologicamente hablando, por lo tanto, el flujo de ejecucion
+  de esta funcion no debe continuar
+  */
+  if (await noMessages()) {
+    alert("No hay mensajes cargados.");
     return;
   }
+
+  let firstMessageChat;
 
   /*
   Si no se cargaron 5 mensajes anteriores, se obtiene el mensaje que aparece
@@ -169,7 +167,7 @@ function loadPreviousFiveMessages() {
   que no se cargan 5 mensajes anteriores
   */
   if (arrayLoadedMessages.length == 0) {
-    firstMessageChat = getFirstMessage();
+    firstMessageChat = await getFirstMessage();
   }
 
   /*
@@ -190,49 +188,44 @@ function loadPreviousFiveMessages() {
   console.log("Timestamp: " + firstMessageChat.data().timestamp);
   console.log("");
 
-  const fivePreviousMessagesQuery = query(collection(getFirestore(), 'messages'), orderBy('timestamp', 'desc'), startAfter(firstMessageChat), limit(5));
+  let arrayMessages = await getPreviousFiveMessages(firstMessageChat);
+  let currentDoc;
 
-  getDocs(fivePreviousMessagesQuery).then((querySnapshot) => {
-      querySnapshot.forEach((currentDoc) => {
-        // console.log("*** Datos de los cinco docs. anteriores ***");
-        // console.log("ID: " + currentDoc.id);
-        // console.log("Nombre: " + currentDoc.data().name);
-        // console.log("Texto: " + currentDoc.data().text);
-        // console.log("URL de imagen: " + currentDoc.data().imageUrl);
-        // console.log("Timestamp: " + currentDoc.data().timestamp);
-        // console.log("");
+  for (var i = 0; i < arrayMessages.length; i++) {
+    currentDoc = arrayMessages[i];
 
-        displayMessage(currentDoc.id, currentDoc.data().timestamp, currentDoc.data().name, currentDoc.data().text, currentDoc.data().profilePicUrl, currentDoc.data().imageUrl,
-        currentDoc.data().favorite);
-        addElementArray(arrayLoadedMessages, currentDoc);
-      });
-  });
+    displayMessage(currentDoc.id, currentDoc.data().timestamp, currentDoc.data().name, currentDoc.data().text, currentDoc.data().profilePicUrl, currentDoc.data().imageUrl,
+    currentDoc.data().favorite);
+
+    arrayLoadedMessages.push(currentDoc);
+  }
+
 }
 
-// Agrega un documento dado a un arreglo dado
-function addElementArray(givenArray, givenDocument) {
-  givenArray.push(givenDocument);
-}
-
-// Devuelve el mensaje que aparece arriba del todo en el chat
+/*
+Devuelve el mensaje que aparece arriba del todo en el chat cuando en
+este se muestran unicamente los tres mensajes mas recientes, lo cual
+sucede cuando la consulta de la funcion loadMessages() tiene limit(3)
+*/
 function getFirstMessage() {
   const threeRecentMessageQuery = query(collection(getFirestore(), 'messages'), orderBy('timestamp', 'desc'), limit(3));
 
-  getDocs(threeRecentMessageQuery).then((querySnapshot) => {
-      querySnapshot.forEach((currentDoc) => {
-        console.log("*** Datos de los tres docs. mas recientes ***");
-        console.log("ID: " + currentDoc.id);
-        console.log("Nombre: " + currentDoc.data().name);
-        console.log("Texto: " + currentDoc.data().text);
-        console.log("URL de imagen: " + currentDoc.data().imageUrl);
-        console.log("Timestamp: " + currentDoc.data().timestamp);
-        console.log("");
-
-        addElementArray(arrayMessages, currentDoc);
-      });
+  return getDocs(threeRecentMessageQuery).then((querySnapshot) => {
+    return querySnapshot.docs[querySnapshot.docs.length - 1];
   });
+}
 
-  return arrayMessages[arrayMessages.length - 1];
+/*
+Retorna un arreglo con los 5 mensajes anteriores al mensaje que aparece
+arriba del todo en el chat de los tres mensajes mas recientes, ordenados
+de forma descendente, es decir, del mas reciente al menos reciente
+*/
+function getPreviousFiveMessages(firstMessageChat) {
+  const fivePreviousMessagesQuery = query(collection(getFirestore(), 'messages'), orderBy('timestamp', 'desc'), startAfter(firstMessageChat), limit(5));
+
+  return getDocs(fivePreviousMessagesQuery).then((querySnapshot) => {
+    return querySnapshot.docs;
+  });
 }
 
 // Elimina todos los documentos correspondientes a los mensajes, por lo tanto, elimina todos los mensajes
@@ -272,11 +265,10 @@ function deleteAllDocs() {
   });
 
   /*
-  Se vacian los arreglos para que sea posible cargar 5 mensajes anteriores
-  a partir de mensajes nuevos, es decir, mensajes que son ingresados luego
-  de eliminar todos los existentes
+  Se vacia el arreglo arrayLoadedMessages para que se puedan cargar 5 mensajes
+  anteriores a partir de mensajes nuevos, es decir, a partir de mensajes que
+  son ingresados luego de eliminar todos los mensajes existentes
   */
-  arrayMessages = [];
   arrayLoadedMessages = [];
 }
 
@@ -373,6 +365,13 @@ async function highlightMessage(event) {
       favorite: false
     });
 
+    /*
+    Si se muestra la lista de mensajes marcados como favoritos (lo cual sucede cuando la variable
+    displayFavorites es verdera, lo cual a su vez sucede cuando se pulsa el boton de mostrar mensajes
+    favoritos, el cual tiene como icono un grupo de estrellas), y en esta lista se desmarca un mensaje,
+    se lo elimina de dicha lista. Esta eliminacion es llevada a cabo por las instrucciones que hay dentro
+    de esta instruccion if.
+    */
     if (displayFavorites) {
       /*
       Estas dos invocaciones permiten que en la lista que muestra unicamente los mensajes
@@ -475,13 +474,13 @@ function deleteAllDocsFromGUI() {
 }
 
 // Retorna true si hay mensajes favoritos, false en caso contrario
-const noFavoriteMessages = () => {
+function noFavoriteMessages() {
   const favoriteMessagesQuery = query(collection(getFirestore(), 'messages'), where("favorite", "==", true), orderBy('timestamp', 'desc'));
 
   return getDocs(favoriteMessagesQuery).then((querySnapshot) => {
     return querySnapshot.empty;
   });
-};
+}
 
 // Elimina todos los mensajes excepto los preferidos
 async function deleteAllExceptFavorites() {
@@ -540,13 +539,13 @@ async function deleteAllExceptFavorites() {
 }
 
 // Retorna true si hay mensajes cargados en la base de datos de Firebase, false en caso contrario
-const noMessages = () => {
+function noMessages() {
   const allMessagesQuery = query(collection(getFirestore(), 'messages'), orderBy('timestamp', 'desc'));
 
   return getDocs(allMessagesQuery).then((querySnapshot) => {
     return querySnapshot.empty;
   });
-};
+}
 
 // Elimina una imagen de la base de datos de Firebase
 function deleteImage(imageUrl) {
